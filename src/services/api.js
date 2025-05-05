@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Use environment variable in production (e.g., https://billing-system.duong.casa/api), otherwise default for local dev
 //const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api'; // Updated port to 5002 to match the running server
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://medical-billing-api-prod.eba-gugtupga.us-east-1.elasticbeanstalk.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://dj3a7xz7qtdtg.cloudfront.net/';
 
 // Enable debug mode
 const DEBUG = true;
