@@ -49,9 +49,9 @@ function ClaimsPage() {
 
   // Helper to format currency
   const formatCurrency = (amount) => {
-      // Safely convert to number, default to 0 if invalid, then format
-      return `$${(Number(amount) || 0).toFixed(2)}`;
-  }
+    // Safely convert to number, default to 0 if invalid, then format
+    return `$${(Number(amount) || 0).toFixed(2)}`;
+  };
 
   return (
     <div>
@@ -76,7 +76,8 @@ function ClaimsPage() {
               <th>Patient</th>
               <th>Provider</th>
               <th>Total Charge</th>
-              <th>Amount Paid</th>
+              <th>Insurance Paid</th>
+              <th>Patient Paid</th>
               <th>Status</th>
               <th>Fraud Score</th>
               <th>Actions</th>
@@ -84,27 +85,32 @@ function ClaimsPage() {
           </thead>
           <tbody>
             {claims.length > 0 ? (
-              claims.map((claim) => (
-                <tr key={claim.claim_id} style={claim.is_flagged_fraud ? { backgroundColor: '#fff3cd' } : {}}>
-                  <td>{claim.claim_id}</td>
-                  <td>{new Date(claim.claim_date).toLocaleDateString()}</td>
-                  <td><Link to={`/patients/${claim.patient_id}`}>{claim.first_name} {claim.last_name}</Link></td>
-                  <td><Link to={`/providers/${claim.provider_id}`}>{claim.provider_name}</Link></td>
-                  <td>{formatCurrency(claim.total_charge)}</td>
-                  <td>{formatCurrency((Number(claim.insurance_paid) || 0) + (Number(claim.patient_paid) || 0))}</td>
-                  <td>{claim.status}</td>
-                  <td>{Number.isFinite(claim.fraud_score) ? claim.fraud_score.toFixed(2) : 'N/A'}</td>
-                  <td>
-                    <Link to={`/claims/${claim.claim_id}`}>View</Link> |
-                    <button className="danger" onClick={() => handleDelete(claim.claim_id)} disabled={loading}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
+              claims.map((claim) => {
+                const isFlagged = claim.fraud_score && parseFloat(claim.fraud_score) > 5;
+                return (
+                  <tr key={claim.claim_id} style={isFlagged ? { backgroundColor: '#fff3cd' } : {}}>
+                    <td>{claim.claim_id}</td>
+                    <td>{new Date(claim.claim_date).toLocaleDateString()}</td>
+                    <td><Link to={`/patients/${claim.patient_id}`}>{claim.patient_name}</Link></td>
+                    <td><Link to={`/providers/${claim.provider_id}`}>{claim.provider_name}</Link></td>
+                    <td>{formatCurrency(claim.total_charge)}</td>
+                    <td>{formatCurrency(claim.insurance_paid)}</td>
+                    <td>{formatCurrency(claim.patient_paid)}</td>
+                    <td>{claim.status}</td>
+                    <td>{claim.fraud_score ? parseFloat(claim.fraud_score).toFixed(2) : 'N/A'}</td>
+                    <td>
+                      <Link to={`/claims/${claim.claim_id}`}>View</Link> |
+                      <Link to={`/claims/${claim.claim_id}/edit`}>Edit</Link> |
+                      <button className="danger" onClick={() => handleDelete(claim.claim_id)} disabled={loading}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
             ) : (
               <tr>
-                <td colSpan="8">No claims found.</td>
+                <td colSpan="10">No claims found.</td>
               </tr>
             )}
           </tbody>

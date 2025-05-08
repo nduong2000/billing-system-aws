@@ -1,21 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getAppointments, deleteAppointment } from '../services/api'; // Use singular deleteAppointment
+import { getAppointments, deleteAppointment, getPatients, getProviders } from '../services/api';
 
 function AppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState({});
+  const [providers, setProviders] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchAppointments = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      // Fetch all appointments - could add filtering later
-      const data = await getAppointments(); 
-      setAppointments(data);
+      
+      // Fetch all required data
+      const [appointmentsData, patientsData, providersData] = await Promise.all([
+        getAppointments(),
+        getPatients(),
+        getProviders()
+      ]);
+      
+      // Create lookup maps for patients and providers
+      const patientMap = {};
+      patientsData.forEach(patient => {
+        patientMap[patient.patient_id] = patient;
+      });
+      
+      const providerMap = {};
+      providersData.forEach(provider => {
+        providerMap[provider.provider_id] = provider;
+      });
+      
+      setAppointments(appointmentsData);
+      setPatients(patientMap);
+      setProviders(providerMap);
     } catch (err) {
-      console.error("Failed to fetch appointments:", err);
+      console.error("Failed to fetch data:", err);
       setError('Failed to load appointments. Please try again later.');
     } finally {
       setLoading(false);
@@ -23,7 +44,7 @@ function AppointmentsPage() {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    fetchData();
   }, []);
 
   const handleDelete = async (appointmentId) => {
@@ -31,9 +52,9 @@ function AppointmentsPage() {
       try {
         setLoading(true);
         setError(null);
-        await deleteAppointment(appointmentId); // Use singular deleteAppointment
+        await deleteAppointment(appointmentId);
         alert('Appointment deleted successfully!');
-        fetchAppointments(); // Refresh list
+        fetchData(); // Refresh list
       } catch (err) {
         console.error("Failed to delete appointment:", err);
         const message = err.response?.data?.message || 'Failed to delete appointment.';
@@ -41,6 +62,18 @@ function AppointmentsPage() {
         setLoading(false);
       }
     }
+  };
+
+  // Helper function to get patient name
+  const getPatientName = (patientId) => {
+    const patient = patients[patientId];
+    return patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown Patient';
+  };
+
+  // Helper function to get provider name
+  const getProviderName = (providerId) => {
+    const provider = providers[providerId];
+    return provider ? provider.provider_name || `${provider.first_name} ${provider.last_name}` : 'Unknown Provider';
   };
 
   return (
@@ -75,9 +108,9 @@ function AppointmentsPage() {
                   {/* Format timestamp to readable date and time */}
                   <td>{new Date(appt.appointment_date).toLocaleString()}</td>
                   {/* Link to patient detail page */}
-                  <td><Link to={`/patients/${appt.patient_id}`}>{appt.first_name} {appt.last_name}</Link></td>
+                  <td><Link to={`/patients/${appt.patient_id}`}>{getPatientName(appt.patient_id)}</Link></td>
                    {/* Link to provider detail page */}
-                  <td><Link to={`/providers/${appt.provider_id}`}>{appt.provider_name}</Link></td>
+                  <td><Link to={`/providers/${appt.provider_id}`}>{getProviderName(appt.provider_id)}</Link></td>
                   <td>{appt.reason_for_visit || 'N/A'}</td>
                   <td>
                     {/* No dedicated view page for now, just edit */}

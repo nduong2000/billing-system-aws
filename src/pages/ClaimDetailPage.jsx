@@ -6,13 +6,12 @@ function ClaimDetailPage() {
   const [claim, setClaim] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { id } = useParams(); // Get the claim ID from the URL
+  const { id } = useParams();
 
   useEffect(() => {
     const fetchClaim = async () => {
       try {
         setLoading(true);
-        // TODO: Adjust the API endpoint if necessary
         const response = await api.get(`/claims/${id}`);
         setClaim(response.data);
         setError(null);
@@ -26,7 +25,7 @@ function ClaimDetailPage() {
     };
 
     fetchClaim();
-  }, [id]); // Re-run effect if the ID changes
+  }, [id]);
 
   if (loading) {
     return <div>Loading claim details...</div>;
@@ -40,21 +39,37 @@ function ClaimDetailPage() {
     return <div>Claim not found.</div>;
   }
 
-  // TODO: Add more claim details as needed
+  // Helper to format currency
+  const formatCurrency = (amount) => {
+    return `$${(Number(amount) || 0).toFixed(2)}`;
+  };
+
   return (
     <div className="container">
       <h1>Claim Details</h1>
       <div className="card">
         <div className="card-body">
           <h5 className="card-title">Claim ID: {claim.claim_id}</h5>
-          <p className="card-text"><strong>Patient ID:</strong> {claim.patient_id}</p>
-          <p className="card-text"><strong>Provider ID:</strong> {claim.provider_id}</p>
-          <p className="card-text"><strong>Service ID:</strong> {claim.service_id}</p>
+          <p className="card-text"><strong>Patient:</strong> {claim.patient_name}</p>
+          <p className="card-text"><strong>Provider:</strong> {claim.provider_name}</p>
           <p className="card-text"><strong>Claim Date:</strong> {new Date(claim.claim_date).toLocaleDateString()}</p>
-          <p className="card-text"><strong>Amount:</strong> ${claim.amount?.toFixed(2)}</p>
+          <p className="card-text"><strong>Total Charge:</strong> {formatCurrency(claim.total_charge)}</p>
+          <p className="card-text"><strong>Insurance Paid:</strong> {formatCurrency(claim.insurance_paid)}</p>
+          <p className="card-text"><strong>Patient Paid:</strong> {formatCurrency(claim.patient_paid)}</p>
           <p className="card-text"><strong>Status:</strong> {claim.status}</p>
-           {/* Add links for editing or other actions if needed */}
-          <Link to="/claims" className="btn btn-secondary">Back to Claims</Link>
+          {claim.fraud_score && (
+            <p className="card-text">
+              <strong>Fraud Score:</strong> {parseFloat(claim.fraud_score).toFixed(2)}
+              {parseFloat(claim.fraud_score) > 5 && (
+                <span className="badge bg-warning ms-2">Potential Fraud</span>
+              )}
+            </p>
+          )}
+          
+          <div className="mt-3">
+            <Link to={`/claims/${claim.claim_id}/edit`} className="btn btn-primary me-2">Edit Claim</Link>
+            <Link to="/claims" className="btn btn-secondary">Back to Claims</Link>
+          </div>
         </div>
       </div>
     </div>

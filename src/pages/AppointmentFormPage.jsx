@@ -57,9 +57,14 @@ function AppointmentFormPage() {
           // Format date for input type="datetime-local"
           // Requires YYYY-MM-DDTHH:mm format
           const apptDate = appointment.appointment_date
-            ? new Date(new Date(appointment.appointment_date).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+            ? new Date(appointment.appointment_date).toISOString().slice(0, 16)
             : '';
-          setFormData({ ...appointment, appointment_date: apptDate });
+          setFormData({ 
+            patient_id: appointment.patient_id.toString(),
+            provider_id: appointment.provider_id.toString(),
+            appointment_date: apptDate,
+            reason_for_visit: appointment.reason_for_visit || ''
+          });
         } catch (err) {
           console.error("Failed to fetch appointment data:", err);
           setError('Failed to load appointment data. Please try again.');
@@ -88,10 +93,11 @@ function AppointmentFormPage() {
         return;
     }
 
-    // Convert local datetime string back to a format the backend expects (e.g., ISO string)
-    // The backend TIMESTAMP type can usually handle ISO strings directly.
+    // Convert local datetime string back to a format the backend expects
     const dataToSend = {
         ...formData,
+        patient_id: parseInt(formData.patient_id, 10),
+        provider_id: parseInt(formData.provider_id, 10),
         appointment_date: new Date(formData.appointment_date).toISOString()
     };
 
@@ -139,7 +145,7 @@ function AppointmentFormPage() {
               <option value="">-- Select Patient --</option>
               {patients.map(p => (
                 <option key={p.patient_id} value={p.patient_id}>
-                  {p.last_name}, {p.first_name} (DOB: {new Date(p.date_of_birth).toLocaleDateString()})
+                  {p.last_name}, {p.first_name}
                 </option>
               ))}
             </select>
@@ -157,7 +163,7 @@ function AppointmentFormPage() {
               <option value="">-- Select Provider --</option>
               {providers.map(p => (
                 <option key={p.provider_id} value={p.provider_id}>
-                  {p.provider_name} ({p.specialty || 'General'})
+                  {p.provider_name || `${p.first_name} ${p.last_name}`} ({p.specialty || 'General'})
                 </option>
               ))}
             </select>
