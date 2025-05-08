@@ -1,8 +1,7 @@
 import axios from 'axios';
 
-// Use environment variable in production (e.g., https://billing-system.duong.casa/api), otherwise default for local dev
-//const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5002/api'; // Updated port to 5002 to match the running server
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// When using Vite's proxy, we use a relative URL which will be proxied
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://ec2-44-211-91-81.compute-1.amazonaws.com/api';
 
 // Enable debug mode
 const DEBUG = true;

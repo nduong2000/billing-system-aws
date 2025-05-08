@@ -9,7 +9,8 @@ export default defineConfig({
       '/api': {
         target: 'https://ec2-44-211-91-81.compute-1.amazonaws.com',
         changeOrigin: true,
-        secure: false, // Disable certificate validation
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
   }
