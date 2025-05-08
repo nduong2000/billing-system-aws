@@ -1,42 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getAppointments, deleteAppointment, getPatients, getProviders } from '../services/api';
+import { getAppointments, deleteAppointment } from '../services/api';
 
 function AppointmentsPage() {
   const [appointments, setAppointments] = useState([]);
-  const [patients, setPatients] = useState({});
-  const [providers, setProviders] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchData = async () => {
+  const fetchAppointments = async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      // Fetch all required data
-      const [appointmentsData, patientsData, providersData] = await Promise.all([
-        getAppointments(),
-        getPatients(),
-        getProviders()
-      ]);
-      
-      // Create lookup maps for patients and providers
-      const patientMap = {};
-      patientsData.forEach(patient => {
-        patientMap[patient.patient_id] = patient;
-      });
-      
-      const providerMap = {};
-      providersData.forEach(provider => {
-        providerMap[provider.provider_id] = provider;
-      });
-      
-      setAppointments(appointmentsData);
-      setPatients(patientMap);
-      setProviders(providerMap);
+      const data = await getAppointments();
+      setAppointments(data);
     } catch (err) {
-      console.error("Failed to fetch data:", err);
+      console.error("Failed to fetch appointments:", err);
       setError('Failed to load appointments. Please try again later.');
     } finally {
       setLoading(false);
@@ -44,7 +22,7 @@ function AppointmentsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    fetchAppointments();
   }, []);
 
   const handleDelete = async (appointmentId) => {
@@ -54,7 +32,7 @@ function AppointmentsPage() {
         setError(null);
         await deleteAppointment(appointmentId);
         alert('Appointment deleted successfully!');
-        fetchData(); // Refresh list
+        fetchAppointments(); // Refresh list
       } catch (err) {
         console.error("Failed to delete appointment:", err);
         const message = err.response?.data?.message || 'Failed to delete appointment.';
@@ -64,22 +42,9 @@ function AppointmentsPage() {
     }
   };
 
-  // Helper function to get patient name
-  const getPatientName = (patientId) => {
-    const patient = patients[patientId];
-    return patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown Patient';
-  };
-
-  // Helper function to get provider name
-  const getProviderName = (providerId) => {
-    const provider = providers[providerId];
-    return provider ? provider.provider_name || `${provider.first_name} ${provider.last_name}` : 'Unknown Provider';
-  };
-
   return (
     <div>
       <h2>Appointments</h2>
-        {/* TODO: Add Filtering options (by patient, provider, date range) */}
 
       <div style={{ marginBottom: '1rem' }}>
         <Link to="/appointments/new">
@@ -107,13 +72,20 @@ function AppointmentsPage() {
                 <tr key={appt.appointment_id}>
                   {/* Format timestamp to readable date and time */}
                   <td>{new Date(appt.appointment_date).toLocaleString()}</td>
-                  {/* Link to patient detail page */}
-                  <td><Link to={`/patients/${appt.patient_id}`}>{getPatientName(appt.patient_id)}</Link></td>
-                   {/* Link to provider detail page */}
-                  <td><Link to={`/providers/${appt.provider_id}`}>{getProviderName(appt.provider_id)}</Link></td>
+                  {/* Use patient_name if available, otherwise fall back to IDs */}
+                  <td>
+                    <Link to={`/patients/${appt.patient_id}`}>
+                      {appt.patient_name || `Patient #${appt.patient_id}`}
+                    </Link>
+                  </td>
+                  {/* Use provider_name if available, otherwise fall back to IDs */}
+                  <td>
+                    <Link to={`/providers/${appt.provider_id}`}>
+                      {appt.provider_name || `Provider #${appt.provider_id}`}
+                    </Link>
+                  </td>
                   <td>{appt.reason_for_visit || 'N/A'}</td>
                   <td>
-                    {/* No dedicated view page for now, just edit */}
                     <Link to={`/appointments/${appt.appointment_id}/edit`}>Edit</Link> |
                     <button className="danger" onClick={() => handleDelete(appt.appointment_id)} disabled={loading}>
                       Delete

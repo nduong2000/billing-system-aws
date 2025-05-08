@@ -91,8 +91,16 @@ function ClaimsPage() {
                   <tr key={claim.claim_id} style={isFlagged ? { backgroundColor: '#fff3cd' } : {}}>
                     <td>{claim.claim_id}</td>
                     <td>{new Date(claim.claim_date).toLocaleDateString()}</td>
-                    <td><Link to={`/patients/${claim.patient_id}`}>{claim.patient_name}</Link></td>
-                    <td><Link to={`/providers/${claim.provider_id}`}>{claim.provider_name}</Link></td>
+                    <td>
+                      <Link to={`/patients/${claim.patient_id}`}>
+                        {claim.patient_name || `Patient #${claim.patient_id}`}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link to={`/providers/${claim.provider_id}`}>
+                        {claim.provider_name || `Provider #${claim.provider_id}`}
+                      </Link>
+                    </td>
                     <td>{formatCurrency(claim.total_charge)}</td>
                     <td>{formatCurrency(claim.insurance_paid)}</td>
                     <td>{formatCurrency(claim.patient_paid)}</td>
