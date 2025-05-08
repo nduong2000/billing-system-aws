@@ -159,7 +159,7 @@ function ClaimFormPage() {
       return;
     }
 
-    // Create a payload that includes appointment_id to satisfy the backend
+    // Create a payload that includes all fields the backend expects
     const payload = {
       patient_id: parseInt(formData.patient_id, 10),
       provider_id: parseInt(formData.provider_id, 10),
@@ -168,10 +168,11 @@ function ClaimFormPage() {
       total_charge: parseFloat(formData.total_charge) || 0,
       insurance_paid: parseFloat(formData.insurance_paid) || 0,
       patient_paid: parseFloat(formData.patient_paid) || 0,
-      appointment_id: null // Add this field to match what the backend expects
+      appointment_id: null, // Add this field to match what the backend expects
+      notes: "" // Add empty notes to match what the backend expects
     };
 
-    console.log("Submitting claim payload with appointment_id:", payload);
+    console.log("Submitting claim payload with additional fields:", payload);
 
     try {
       if (isEditMode) {
