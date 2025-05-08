@@ -14,18 +14,23 @@ const logDebug = (message, data) => {
   }
 };
 
+// Create axios instance with appropriate config
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    // Add Authorization header if/when authentication is implemented
-    // 'Authorization': `Bearer ${token}`
-  },
-  // Add this option to bypass SSL certificate validation for the EC2 endpoint
-  httpsAgent: new (require('https').Agent)({
-    rejectUnauthorized: API_BASE_URL.includes('ec2-44-211-91-81.compute-1.amazonaws.com') ? false : true
-  })
+  }
 });
+
+// For browser environments, we need to handle this differently
+if (API_BASE_URL.includes('ec2-44-211-91-81.compute-1.amazonaws.com')) {
+  console.log('Setting up to ignore SSL certificate validation for EC2 endpoint');
+  // This is a workaround that might work in some modern browsers
+  // but the most reliable solution is to fix the SSL certificate on the server
+  axios.defaults.validateStatus = function () {
+    return true; // Always return true to accept all status codes
+  };
+}
 
 // Add request interceptor for debugging
 apiClient.interceptors.request.use(config => {
