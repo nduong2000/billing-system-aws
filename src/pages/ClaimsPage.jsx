@@ -107,9 +107,13 @@ function ClaimsPage() {
                     <td>{claim.status}</td>
                     <td>{claim.fraud_score ? parseFloat(claim.fraud_score).toFixed(2) : 'N/A'}</td>
                     <td>
-                      <Link to={`/claims/${claim.claim_id}`}>View</Link> |
-                      <Link to={`/claims/${claim.claim_id}/edit`}>Edit</Link> |
-                      <button className="danger" onClick={() => handleDelete(claim.claim_id)} disabled={loading}>
+                      <Link to={`/claims/${claim.claim_id}`}>View</Link>{' '}
+                      <Link to={`/claims/${claim.claim_id}/edit`}>Edit</Link>{' '}
+                      <button 
+                        className="danger" 
+                        onClick={() => handleDelete(claim.claim_id)} 
+                        disabled={loading}
+                      >
                         Delete
                       </button>
                     </td>
