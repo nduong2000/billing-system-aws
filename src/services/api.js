@@ -21,6 +21,10 @@ const apiClient = axios.create({
     // Add Authorization header if/when authentication is implemented
     // 'Authorization': `Bearer ${token}`
   },
+  // Add this option to bypass SSL certificate validation for the EC2 endpoint
+  httpsAgent: new (require('https').Agent)({
+    rejectUnauthorized: API_BASE_URL.includes('ec2-44-211-91-81.compute-1.amazonaws.com') ? false : true
+  })
 });
 
 // Add request interceptor for debugging
