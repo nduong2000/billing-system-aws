@@ -14,12 +14,14 @@ function ClaimFormPage() {
     status: 'Submitted',
     total_charge: '',
     insurance_paid: '0.00',
-    patient_paid: '0.00'
+    patient_paid: '0.00',
+    items: [{ service_id: '', charge_amount: '' }] // Add claim items
   };
 
   const [formData, setFormData] = useState(initialFormData);
   const [patients, setPatients] = useState([]);
   const [providers, setProviders] = useState([]);
+  const [services, setServices] = useState([]); // Add services for dropdown
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -30,13 +32,15 @@ function ClaimFormPage() {
 
     const fetchDropdownData = async () => {
       try {
-        const [patientsRes, providersRes] = await Promise.all([
+        const [patientsRes, providersRes, servicesRes] = await Promise.all([
           api.get('/patients'),
-          api.get('/providers')
+          api.get('/providers'),
+          api.get('/services') // Fetch services for claim items
         ]);
         if (isMounted) {
           setPatients(patientsRes.data || []);
           setProviders(providersRes.data || []);
+          setServices(servicesRes.data || []);
         }
       } catch (err) {
         console.error("Failed to fetch dropdown data:", err);
@@ -49,6 +53,11 @@ function ClaimFormPage() {
         const response = await api.get(`/claims/${id}`);
         if (isMounted) {
           const claimData = response.data;
+          
+          // Fetch claim items if in edit mode
+          const itemsResponse = await api.get(`/claims/${id}/items`);
+          const claimItems = itemsResponse.data || [];
+          
           setFormData({
             patient_id: claimData.patient_id || '',
             provider_id: claimData.provider_id || '',
@@ -56,7 +65,11 @@ function ClaimFormPage() {
             status: claimData.status || 'Submitted',
             total_charge: claimData.total_charge || '',
             insurance_paid: claimData.insurance_paid || '0.00',
-            patient_paid: claimData.patient_paid || '0.00'
+            patient_paid: claimData.patient_paid || '0.00',
+            items: claimItems.length > 0 ? claimItems.map(item => ({
+              service_id: item.service_id.toString(),
+              charge_amount: item.charge_amount.toString()
+            })) : [{ service_id: '', charge_amount: '' }]
           });
         }
       } catch (err) {
@@ -83,6 +96,57 @@ function ClaimFormPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle changes to claim items
+  const handleItemChange = (index, e) => {
+    const { name, value } = e.target;
+    const newItems = [...formData.items];
+    newItems[index] = { ...newItems[index], [name]: value };
+    
+    // Update total charge when item changes
+    if (name === 'charge_amount') {
+      const totalCharge = newItems.reduce((sum, item) => {
+        return sum + (parseFloat(item.charge_amount) || 0);
+      }, 0);
+      
+      setFormData(prev => ({
+        ...prev,
+        items: newItems,
+        total_charge: totalCharge.toFixed(2)
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        items: newItems
+      }));
+    }
+  };
+
+  // Add new item to claim
+  const addItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, { service_id: '', charge_amount: '' }]
+    }));
+  };
+
+  // Remove item from claim
+  const removeItem = (index) => {
+    if (formData.items.length <= 1) return; // Keep at least one item
+    
+    const newItems = formData.items.filter((_, i) => i !== index);
+    
+    // Recalculate total charge
+    const totalCharge = newItems.reduce((sum, item) => {
+      return sum + (parseFloat(item.charge_amount) || 0);
+    }, 0);
+    
+    setFormData(prev => ({
+      ...prev,
+      items: newItems,
+      total_charge: totalCharge.toFixed(2)
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -95,30 +159,53 @@ function ClaimFormPage() {
       return;
     }
 
-    // Format numbers correctly
+    // Validate items
+    if (!formData.items.length || formData.items.some(item => !item.service_id || !item.charge_amount)) {
+      setError('Each claim item must have a service and charge amount.');
+      setLoading(false);
+      return;
+    }
+
+    // Format data for API
     const payload = {
-      ...formData,
       patient_id: parseInt(formData.patient_id, 10),
       provider_id: parseInt(formData.provider_id, 10),
+      claim_date: formData.claim_date,
+      status: formData.status,
       total_charge: parseFloat(formData.total_charge) || 0,
       insurance_paid: parseFloat(formData.insurance_paid) || 0,
-      patient_paid: parseFloat(formData.patient_paid) || 0
+      patient_paid: parseFloat(formData.patient_paid) || 0,
+      items: formData.items.map(item => ({
+        service_id: parseInt(item.service_id, 10),
+        charge_amount: parseFloat(item.charge_amount) || 0
+      }))
     };
+
+    // Log what we're sending
+    console.log("Submitting claim payload:", payload);
 
     try {
       if (isEditMode) {
         await api.put(`/claims/${id}`, payload);
         alert('Claim updated successfully!');
+        navigate('/claims');
       } else {
         const response = await api.post('/claims', payload);
         alert('Claim created successfully!');
         navigate(`/claims/${response.data.claim_id}`);
       }
-      navigate('/claims');
     } catch (err) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} claim:`, err);
-      const message = err.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'create'} claim.`;
-      setError(message);
+      
+      // Extract error details if available
+      let errorMessage = `Failed to ${isEditMode ? 'update' : 'create'} claim.`;
+      if (err.response?.data?.detail) {
+        errorMessage += ` Server says: ${err.response.data.detail}`;
+      } else if (err.response?.data?.message) {
+        errorMessage += ` Server says: ${err.response.data.message}`;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -160,7 +247,7 @@ function ClaimFormPage() {
               <option value="">Select Patient</option>
               {patients.map(p => (
                 <option key={p.patient_id} value={p.patient_id}>
-                  {p.last_name}, {p.first_name}
+                  {p.last_name || ''}, {p.first_name || ''}
                 </option>
               ))}
             </select>
@@ -181,7 +268,7 @@ function ClaimFormPage() {
               <option value="">Select Provider</option>
               {providers.map(p => (
                 <option key={p.provider_id} value={p.provider_id}>
-                  {p.provider_name}
+                  {p.provider_name || `${p.first_name || ''} ${p.last_name || ''}`}
                 </option>
               ))}
             </select>
@@ -226,8 +313,76 @@ function ClaimFormPage() {
           </div>
         </div>
 
-        <div className="row mb-3">
-          {/* Total Charge */}
+        {/* Claim Items Section */}
+        <h3 className="mt-4">Claim Items</h3>
+        <p className="text-muted">Add services to this claim:</p>
+        
+        {formData.items.map((item, index) => (
+          <div key={index} className="row mb-2 align-items-center">
+            <div className="col-md-5">
+              <label className={index === 0 ? "form-label" : "visually-hidden"}>Service:</label>
+              <select
+                name="service_id"
+                className="form-select"
+                value={item.service_id}
+                onChange={(e) => handleItemChange(index, e)}
+                required
+                disabled={loading && isEditMode}
+              >
+                <option value="">Select Service</option>
+                {services.map(s => (
+                  <option key={s.service_id} value={s.service_id}>
+                    {s.cpt_code} - {s.description} (${s.standard_charge})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="col-md-5">
+              <label className={index === 0 ? "form-label" : "visually-hidden"}>Charge Amount:</label>
+              <div className="input-group">
+                <span className="input-group-text">$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  name="charge_amount"
+                  className="form-control"
+                  value={item.charge_amount}
+                  onChange={(e) => handleItemChange(index, e)}
+                  required
+                  disabled={loading && isEditMode}
+                />
+              </div>
+            </div>
+            
+            <div className="col-md-2">
+              {index === 0 && <label className="form-label">&nbsp;</label>}
+              <button
+                type="button"
+                className="btn btn-danger btn-sm d-block w-100"
+                onClick={() => removeItem(index)}
+                disabled={formData.items.length <= 1 || loading}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+        
+        <div className="mb-3">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={addItem}
+            disabled={loading}
+          >
+            + Add Another Service
+          </button>
+        </div>
+
+        <div className="row mb-3 mt-4">
+          {/* Total Charge - Auto-calculated from items */}
           <div className="col-md-4">
             <label htmlFor="total_charge" className="form-label">Total Charge:</label>
             <div className="input-group">
@@ -242,8 +397,9 @@ function ClaimFormPage() {
                 value={formData.total_charge}
                 onChange={handleChange}
                 required
-                disabled={loading}
+                readOnly
               />
+              <small className="form-text text-muted">Auto-calculated from items</small>
             </div>
           </div>
           
@@ -261,7 +417,6 @@ function ClaimFormPage() {
                 className="form-control"
                 value={formData.insurance_paid}
                 onChange={handleChange}
-                disabled={loading}
               />
             </div>
           </div>
@@ -280,7 +435,6 @@ function ClaimFormPage() {
                 className="form-control"
                 value={formData.patient_paid}
                 onChange={handleChange}
-                disabled={loading}
               />
             </div>
           </div>
