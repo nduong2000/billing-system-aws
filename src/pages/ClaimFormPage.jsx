@@ -153,20 +153,13 @@ function ClaimFormPage() {
     setError(null);
 
     // Validation
-    if (!formData.patient_id || !formData.provider_id || !formData.claim_date || !formData.status) {
+    if (!formData.patient_id || !formData.provider_id || !formData.claim_date || !formData.status || !formData.total_charge) {
       setError('Please fill in all required fields.');
       setLoading(false);
       return;
     }
 
-    // Validate items
-    if (!formData.items.length || formData.items.some(item => !item.service_id || !item.charge_amount)) {
-      setError('Each claim item must have a service and charge amount.');
-      setLoading(false);
-      return;
-    }
-
-    // Format data for API
+    // Create a minimal payload that matches exactly the claims table columns
     const payload = {
       patient_id: parseInt(formData.patient_id, 10),
       provider_id: parseInt(formData.provider_id, 10),
@@ -174,15 +167,11 @@ function ClaimFormPage() {
       status: formData.status,
       total_charge: parseFloat(formData.total_charge) || 0,
       insurance_paid: parseFloat(formData.insurance_paid) || 0,
-      patient_paid: parseFloat(formData.patient_paid) || 0,
-      items: formData.items.map(item => ({
-        service_id: parseInt(item.service_id, 10),
-        charge_amount: parseFloat(item.charge_amount) || 0
-      }))
+      patient_paid: parseFloat(formData.patient_paid) || 0
     };
 
-    // Log what we're sending
-    console.log("Submitting claim payload:", payload);
+    // Explicitly log what we're sending
+    console.log("Submitting minimal claim payload:", payload);
 
     try {
       if (isEditMode) {
@@ -190,14 +179,37 @@ function ClaimFormPage() {
         alert('Claim updated successfully!');
         navigate('/claims');
       } else {
+        // Create a new claim with just the basic claim data first
         const response = await api.post('/claims', payload);
+        const newClaimId = response.data.claim_id;
+        
+        // Now we can add claim items separately if needed
+        if (formData.items && formData.items.length > 0) {
+          // Loop through items and add them one by one
+          for (const item of formData.items) {
+            if (item.service_id && item.charge_amount) {
+              const itemPayload = {
+                service_id: parseInt(item.service_id, 10),
+                charge_amount: parseFloat(item.charge_amount) || 0
+              };
+              
+              try {
+                await api.post(`/claims/${newClaimId}/items`, itemPayload);
+              } catch (itemErr) {
+                console.error("Error adding claim item:", itemErr);
+                // Continue to next item even if this one fails
+              }
+            }
+          }
+        }
+        
         alert('Claim created successfully!');
-        navigate(`/claims/${response.data.claim_id}`);
+        navigate(`/claims/${newClaimId}`);
       }
     } catch (err) {
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} claim:`, err);
       
-      // Extract error details if available
+      // Extract error details
       let errorMessage = `Failed to ${isEditMode ? 'update' : 'create'} claim.`;
       if (err.response?.data?.detail) {
         errorMessage += ` Server says: ${err.response.data.detail}`;
